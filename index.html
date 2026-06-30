@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Viya - AI Air Writing System</title>
+  
+  <!-- Modern Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+  
+  <!-- MediaPipe Hands CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <style>
+    /* ----------------------------------------------------
+       Design System & Core Variables
+       ---------------------------------------------------- */
+    :root {
+      --bg-gradient: radial-gradient(circle at 80% 20%, #1a1b35 0%, #080915 100%);
+      --glass-bg: rgba(22, 25, 47, 0.45);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      --font-family: 'Outfit', sans-serif;
+      --heading-font: 'Space Grotesk', sans-serif;
+      
+      --color-primary: #00f2fe;
+      --color-primary-glow: rgba(0, 242, 254, 0.4);
+      --color-secondary: #4facfe;
+      
+      --color-red: #ff3b30;
+      --color-green: #34c759;
+      --color-blue: #007aff;
+      --color-yellow: #ffcc00;
+      --color-white: #ffffff;
+      
+      --color-draw: #00f2fe;
+      --color-selection: #af52de;
+      --color-clear: #ff3b30;
+      --color-save: #34c759;
+      --color-pause: #8e8e93;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-gradient);
+      color: #f1f3f9;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ----------------------------------------------------
+       Scrollbars
+       ---------------------------------------------------- */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #080915;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    /* ----------------------------------------------------
+       Layout & Components
+       ---------------------------------------------------- */
+    header {
+      padding: 24px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(8, 9, 21, 0.6);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-glow {
+      width: 14px;
+      height: 14px;
+      background: var(--color-primary);
+      border-radius: 50%;
+      box-shadow: 0 0 12px var(--color-primary);
+      animation: pulse 2s infinite alternate;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); box-shadow: 0 0 8px var(--color-primary); }
+      100% { transform: scale(1.15); box-shadow: 0 0 16px var(--color-primary); }
+    }
+
+    h1 {
+      font-family: var(--heading-font);
+      font-weight: 700;
+      font-size: 24px;
+      letter-spacing: 1px;
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #8c90aa;
+      font-weight: 300;
+      margin-top: 2px;
+    }
+
+    main {
+      flex: 1;
+      padding: 30px 40px;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Loading Screen overlay */
+    #loading_overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #080915;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: opacity 0.5s ease;
+    }
+
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(0, 242, 254, 0.1);
+      border-left-color: var(--color-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+      box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 18px;
+      font-weight: 400;
+      letter-spacing: 1px;
+      color: #f1f3f9;
+    }
+
+    .loading-subtext {
+      font-size: 13px;
+      color: #8c90aa;
+      margin-top: 8px;
+    }
+
+    /* ----------------------------------------------------
+       HUD Status Banner
+       ---------------------------------------------------- */
+    .hud-banner {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
+    .hud-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 16px 20px;
+      box-shadow: var(--glass-glow);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hud-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 3px;
+      width: 100%;
+      background: transparent;
+    }
+
+    .hud-card.active-state::after {
+      background: var(--hud-border-color, var(--color-primary));
+    }
+
+    .hud-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #8c90aa;
+      margin-bottom: 4px;
+    }
+
+    .hud-value {
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .state-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #8e8e93;
+      box-shadow: 0 0 8px #8e8e93;
+    }
+
+    /* ----------------------------------------------------
+       Workspaces: Feed & Canvas Card Grid
+       ---------------------------------------------------- */
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .workspace-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .workspace-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: var(--glass-glow);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card-title {
+      font-family: var(--heading-font);
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #f1f3f9;
+      letter-spacing: 0.5px;
+    }
+
+    .resolution-tag {
+      font-size: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 3px 8px;
+      border-radius: 100px;
+      color: #8c90aa;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      background: #000000;
+      border-radius: 12px;
+      overflow: hidden;
+      aspect-ratio: 16/9;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Video element hidden, used only for capture */
+    #webcam {
+      display: none;
+    }
+
+    /* ----------------------------------------------------
+       Controls Cockpit Panel
+       ---------------------------------------------------- */
+    .cockpit-panel {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: var(--glass-glow);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .control-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #8c90aa;
+      font-weight: 600;
+    }
+
+    /* Colors */
+    .color-picker {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .color-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .color-btn::after {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: -6px;
+      right: -6px;
+      bottom: -6px;
+      border: 2px solid transparent;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+    }
+
+    .color-btn.active::after {
+      border-color: var(--btn-color);
+      box-shadow: 0 0 10px var(--btn-color);
+    }
+
+    .color-btn:hover {
+      transform: scale(1.15);
+    }
+
+    .btn-red { background-color: var(--color-red); --btn-color: var(--color-red); }
+    .btn-green { background-color: var(--color-green); --btn-color: var(--color-green); }
+    .btn-blue { background-color: var(--color-blue); --btn-color: var(--color-blue); }
+    .btn-yellow { background-color: var(--color-yellow); --btn-color: var(--color-yellow); }
+    .btn-white { background-color: var(--color-white); --btn-color: var(--color-white); }
+
+    /* Brush Size */
+    .brush-size-control {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 140px;
+      background: rgba(255, 255, 255, 0.1);
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      box-shadow: 0 0 8px var(--color-primary);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .brush-preview {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .brush-preview-dot {
+      background: #ffffff;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+
+    /* Actions Panel */
+    .actions-panel {
+      display: flex;
+      gap: 12px;
+    }
+
+    .action-btn {
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      background: rgba(255, 255, 255, 0.04);
+      color: #f1f3f9;
+      font-size: 14px;
+      font-family: var(--font-family);
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+    }
+
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .action-btn:active {
+      transform: translateY(1px);
+    }
+
+    .action-btn.btn-save {
+      background: linear-gradient(135deg, rgba(52, 199, 89, 0.15) 0%, rgba(52, 199, 89, 0.05) 100%);
+      border-color: rgba(52, 199, 89, 0.3);
+      color: #34c759;
+    }
+
+    .action-btn.btn-save:hover {
+      background: linear-gradient(135deg, rgba(52, 199, 89, 0.25) 0%, rgba(52, 199, 89, 0.1) 100%);
+      border-color: rgba(52, 199, 89, 0.5);
+      box-shadow: 0 4px 12px rgba(52, 199, 89, 0.15);
+    }
+
+    .action-btn.btn-clear {
+      background: linear-gradient(135deg, rgba(255, 59, 48, 0.15) 0%, rgba(255, 59, 48, 0.05) 100%);
+      border-color: rgba(255, 59, 48, 0.3);
+      color: #ff3b30;
+    }
+
+    .action-btn.btn-clear:hover {
+      background: linear-gradient(135deg, rgba(255, 59, 48, 0.25) 0%, rgba(255, 59, 48, 0.1) 100%);
+      border-color: rgba(255, 59, 48, 0.5);
+      box-shadow: 0 4px 12px rgba(255, 59, 48, 0.15);
+    }
+
+    /* ----------------------------------------------------
+       Instructions Section
+       ---------------------------------------------------- */
+    .instructions-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: var(--glass-glow);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .instructions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .instruction-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: all 0.3s ease;
+    }
+
+    .instruction-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      transform: translateY(-2px);
+      border-color: var(--glass-border);
+    }
+
+    .gesture-emoji {
+      font-size: 32px;
+      background: rgba(255, 255, 255, 0.05);
+      width: 54px;
+      height: 54px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gesture-desc h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f1f3f9;
+      margin-bottom: 2px;
+    }
+
+    .gesture-desc p {
+      font-size: 12px;
+      color: #8c90aa;
+      font-weight: 300;
+    }
+
+    /* Keyboard Shortcuts Info */
+    .shortcuts-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 12px;
+      color: #8c90aa;
+      align-items: center;
+    }
+
+    .shortcut-tag {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      color: var(--color-primary);
+      font-weight: bold;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* ----------------------------------------------------
+       Notifications Toast
+       ---------------------------------------------------- */
+    #toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(22, 25, 47, 0.9);
+      border: 1px solid var(--color-primary);
+      box-shadow: 0 10px 40px rgba(0, 242, 254, 0.2);
+      padding: 14px 28px;
+      border-radius: 100px;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      z-index: 1000;
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s;
+      opacity: 0;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    #toast-icon {
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- LOADING OVERLAY -->
+  <div id="loading_overlay">
+    <div class="spinner"></div>
+    <div class="loading-text">INITIALIZING VIYA AI</div>
+    <div class="loading-subtext">Configuring camera stream and loading neural networks...</div>
+  </div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand">
+      <div class="logo-glow"></div>
+      <div>
+        <h1>Viya</h1>
+        <div class="subtitle">AI-Powered Hand Gesture Air Drawing System</div>
+      </div>
+    </div>
+    <div class="resolution-tag" id="camera_indicator">Status: Connecting Webcam...</div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main>
+    
+    <!-- HUD CARDS -->
+    <div class="hud-banner">
+      
+      <!-- Gesture state -->
+      <div class="hud-card active-state" id="hud_state_card" style="--hud-border-color: var(--color-pause)">
+        <div>
+          <div class="hud-label">Current Gesture</div>
+          <div class="hud-value" id="hud_gesture">
+            <span class="state-indicator" id="hud_indicator" style="background: var(--color-pause); box-shadow: 0 0 8px var(--color-pause);"></span>
+            <span id="hud_gesture_text">IDLE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Color state -->
+      <div class="hud-card">
+        <div>
+          <div class="hud-label">Brush Color</div>
+          <div class="hud-value" id="hud_color_value">
+            <span class="state-indicator" id="hud_color_indicator" style="background: var(--color-red); box-shadow: 0 0 8px var(--color-red);"></span>
+            <span id="hud_color_text">RED</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Size state -->
+      <div class="hud-card">
+        <div>
+          <div class="hud-label">Brush Size</div>
+          <div class="hud-value" id="hud_size_value">6 px</div>
+        </div>
+      </div>
+
+      <!-- FPS counter -->
+      <div class="hud-card">
+        <div>
+          <div class="hud-label">System Performance</div>
+          <div class="hud-value" id="hud_fps">-- FPS</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- WORKSPACE GRID (SIDE BY SIDE PREVIEWS) -->
+    <div class="workspace-grid">
+      
+      <!-- Camera feed view -->
+      <div class="workspace-card">
+        <div class="card-title">
+          <span>Camera Feed Overlay</span>
+          <span class="resolution-tag">1280 x 720 (Mirrored)</span>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="cam_canvas" width="1280" height="720"></canvas>
+        </div>
+      </div>
+
+      <!-- Clean drawing canvas view -->
+      <div class="workspace-card">
+        <div class="card-title">
+          <span>Clean Canvas View</span>
+          <span class="resolution-tag" style="background: rgba(0, 242, 254, 0.1); color: var(--color-primary)">Interactive</span>
+        </div>
+        <div class="canvas-wrapper" style="background: #000000;">
+          <canvas id="canvas" width="1280" height="720"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- COCKPIT CONTROL PANEL -->
+    <div class="cockpit-panel">
+      
+      <!-- Color Picker -->
+      <div class="control-group">
+        <div class="control-label">Brush Color</div>
+        <div class="color-picker">
+          <button class="color-btn btn-red active" data-color="r" title="Red (R)"></button>
+          <button class="color-btn btn-green" data-color="g" title="Green (G)"></button>
+          <button class="color-btn btn-blue" data-color="b" title="Blue (B)"></button>
+          <button class="color-btn btn-yellow" data-color="y" title="Yellow (Y)"></button>
+          <button class="color-btn btn-white" data-color="w" title="White (W)"></button>
+        </div>
+      </div>
+
+      <!-- Brush Size Slider -->
+      <div class="control-group">
+        <div class="control-label">Brush Thickness</div>
+        <div class="brush-size-control">
+          <input type="range" id="size_slider" min="2" max="40" value="6" step="2">
+          <div class="brush-preview" id="brush_preview">
+            <div class="brush-preview-dot" id="brush_preview_dot" style="width: 6px; height: 6px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="control-group">
+        <div class="control-label">Actions</div>
+        <div class="actions-panel">
+          <button class="action-btn" id="btn_undo" title="Undo Last Stroke (U)">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/>
+              <path d="M3.172 5.172a.5.5 0 0 0 .707 0l2-2a.5.5 0 1 0-.708-.708L3.5 4.086V1.5a.5.5 0 0 0-1 0v3a.5.5 0 0 0 .172.386z"/>
+            </svg>
+            Undo
+          </button>
+          <button class="action-btn btn-clear" id="btn_clear" title="Clear Canvas (C)">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+              <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+            </svg>
+            Clear
+          </button>
+          <button class="action-btn btn-save" id="btn_save" title="Save Image (S)">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
+              <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
+            </svg>
+            Save PNG
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- GESTURES & CONTROLS INSTRUCTIONS -->
+    <div class="instructions-card">
+      <div class="card-title">Gesture Commands & Keyboard Shortcuts</div>
+      <div class="instructions-grid">
+        
+        <div class="instruction-item">
+          <div class="gesture-emoji">☝️</div>
+          <div class="gesture-desc">
+            <h4>Draw Mode</h4>
+            <p>Index finger extended only</p>
+          </div>
+        </div>
+
+        <div class="instruction-item">
+          <div class="gesture-emoji">✌️</div>
+          <div class="gesture-desc">
+            <h4>Pause / Hover Select</h4>
+            <p>Hover finger on menu in Selection Mode</p>
+          </div>
+        </div>
+
+        <div class="instruction-item">
+          <div class="gesture-emoji">🖐️</div>
+          <div class="gesture-desc">
+            <h4>Clear Canvas</h4>
+            <p>Extend all 5 fingers</p>
+          </div>
+        </div>
+
+        <div class="instruction-item">
+          <div class="gesture-emoji">✊</div>
+          <div class="gesture-desc">
+            <h4>Pause Drawing</h4>
+            <p>Make a closed fist</p>
+          </div>
+        </div>
+
+        <div class="instruction-item">
+          <div class="gesture-emoji">👍</div>
+          <div class="gesture-desc">
+            <h4>Save to Server</h4>
+            <p>Thumbs up gesture</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Keyboard shortcuts -->
+      <div class="shortcuts-bar">
+        <span>Keyboard Controls:</span>
+        <div>
+          Color: <span class="shortcut-tag">R</span> Red | <span class="shortcut-tag">G</span> Green | <span class="shortcut-tag">B</span> Blue | <span class="shortcut-tag">Y</span> Yellow | <span class="shortcut-tag">W</span> White
+        </div>
+        <div style="margin-left: auto;">
+          Brush Size: <span class="shortcut-tag">+</span> / <span class="shortcut-tag">-</span> | Undo: <span class="shortcut-tag">U</span> | Clear: <span class="shortcut-tag">C</span> | Save: <span class="shortcut-tag">S</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast">
+    <span id="toast-icon">✨</span>
+    <span id="toast-message">Application Ready</span>
+  </div>
+
+  <!-- Capture elements (hidden) -->
+  <video id="webcam" width="1280" height="720" autoplay playsinline></video>
+
+  <!-- JS Code -->
+  <script>
+    // ----------------------------------------------------------------------
+    // Setup and HTML Elements
+    // ----------------------------------------------------------------------
+    const video = document.getElementById('webcam');
+    const camCanvas = document.getElementById('cam_canvas');
+    const camCtx = camCanvas.getContext('2d');
+    const cleanCanvas = document.getElementById('canvas');
+    const cleanCtx = cleanCanvas.getContext('2d');
+
+    const hudGestureText = document.getElementById('hud_gesture_text');
+    const hudIndicator = document.getElementById('hud_indicator');
+    const hudStateCard = document.getElementById('hud_state_card');
+    const hudColorText = document.getElementById('hud_color_text');
+    const hudColorIndicator = document.getElementById('hud_color_indicator');
+    const hudSizeValue = document.getElementById('hud_size_value');
+    const hudFps = document.getElementById('hud_fps');
+    const cameraIndicator = document.getElementById('camera_indicator');
+    
+    const sizeSlider = document.getElementById('size_slider');
+    const brushPreviewDot = document.getElementById('brush_preview_dot');
+    
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toast-message');
+    const toastIcon = document.getElementById('toast-icon');
+
+    // ----------------------------------------------------------------------
+    // Constants & Configuration
+    // ----------------------------------------------------------------------
+    const CAM_WIDTH = 1280;
+    const CAM_HEIGHT = 720;
+    const SMOOTHING_WINDOW = 5;
+    const MIN_DRAW_DISTANCE = 2;
+    const GESTURE_HOLD_FRAMES = 3;
+    const THUMBS_UP_COOLDOWN = 2000; // ms
+
+    const COLOR_MAP = {
+      'r': { name: 'RED', hex: '#ff3b30' },
+      'g': { name: 'GREEN', hex: '#34c759' },
+      'b': { name: 'BLUE', hex: '#007aff' },
+      'y': { name: 'YELLOW', hex: '#ffcc00' },
+      'w': { name: 'WHITE', hex: '#ffffff' }
+    };
+
+    const GESTURE_META = {
+      'draw': { text: 'DRAWING', emoji: '☝️', color: 'var(--color-draw)' },
+      'selection': { text: 'SELECTION MODE', emoji: '✌️', color: 'var(--color-selection)' },
+      'open_palm': { text: 'CLEARING...', emoji: '🖐️', color: 'var(--color-clear)' },
+      'fist': { text: 'PAUSED (Fist)', emoji: '✊', color: 'var(--color-pause)' },
+      'thumbs_up': { text: 'SAVING...', emoji: '👍', color: 'var(--color-save)' },
+      'pinky_cycle': { text: 'CYCLING COLOR', emoji: '🤙', color: '#ff00ff' },
+      'neutral': { text: 'IDLE', emoji: '⚪', color: 'var(--color-pause)' }
+    };
+
+    const TIP_IDS = { thumb: 4, index: 8, middle: 12, ring: 16, pinky: 20 };
+    const PIP_IDS = { thumb: 2, index: 6, middle: 10, ring: 14, pinky: 18 };
+
+    const HAND_CONNECTIONS = [
+      [0, 1], [1, 2], [2, 3], [3, 4], // thumb
+      [0, 5], [5, 6], [6, 7], [7, 8], // index
+      [5, 9], [9, 10], [10, 11], [11, 12], // middle
+      [9, 13], [13, 14], [14, 15], [15, 16], // ring
+      [13, 17], [17, 18], [18, 19], [19, 20], // pinky
+      [0, 17] // palm base
+    ];
+
+    // State Variables
+    let brushColor = COLOR_MAP['r'].hex;
+    let brushColorName = COLOR_MAP['r'].name;
+    let brushSize = 6;
+    let isDrawing = false;
+    let prevPoint = null;
+    let lastSaveTime = 0;
+    let lastColorCycleTime = 0;
+    
+    // UI Menu Buttons coordinates for hover selection
+    const UI_BUTTONS = [
+      { id: 'r', type: 'color', label: 'RED', x: 40, y: 15, w: 45, h: 45, color: '#ff3b30' },
+      { id: 'g', type: 'color', label: 'GREEN', x: 95, y: 15, w: 45, h: 45, color: '#34c759' },
+      { id: 'b', type: 'color', label: 'BLUE', x: 150, y: 15, w: 45, h: 45, color: '#007aff' },
+      { id: 'y', type: 'color', label: 'YELLOW', x: 205, y: 15, w: 45, h: 45, color: '#ffcc00' },
+      { id: 'w', type: 'color', label: 'WHITE', x: 260, y: 15, w: 45, h: 45, color: '#ffffff' },
+      
+      { id: 'undo', type: 'action', label: 'Undo ↩️', x: 325, y: 15, w: 85, h: 45, color: 'rgba(255, 255, 255, 0.12)' },
+      { id: 'clear', type: 'action', label: 'Clear 🧹', x: 420, y: 15, w: 85, h: 45, color: 'rgba(255, 59, 48, 0.2)' }
+    ];
+    let lastActionTime = 0;
+    const ACTION_COOLDOWN = 1000; // ms
+    
+    // Performance Variables
+    let fpsHistory = [];
+    let prevTime = performance.now();
+
+    // ----------------------------------------------------------------------
+    // Core Logic Classes
+    // ----------------------------------------------------------------------
+    class Stroke {
+      constructor(color, size) {
+        this.color = color;
+        this.size = size;
+        this.points = [];
+      }
+    }
+
+    class CanvasManager {
+      constructor(width, height) {
+        this.width = width;
+        this.height = height;
+        this.strokes = [];
+        this.currentStroke = null;
+        
+        // Offscreen persistent drawing canvas
+        this.canvas = document.createElement('canvas');
+        this.canvas.width = width;
+        this.canvas.height = height;
+        this.ctx = this.canvas.getContext('2d');
+        this.clear();
+      }
+
+      startStroke(color, size) {
+        this.currentStroke = new Stroke(color, size);
+        this.strokes.push(this.currentStroke);
+      }
+
+      addPoint(point) {
+        if (!this.currentStroke) return;
+        this.currentStroke.points.push(point);
+      }
+
+      endStroke() {
+        this.currentStroke = null;
+      }
+
+      undo() {
+        if (this.strokes.length > 0) {
+          this.strokes.pop();
+        }
+        this.redraw();
+      }
+
+      clear() {
+        this.strokes = [];
+        this.currentStroke = null;
+        this.ctx.clearRect(0, 0, this.width, this.height);
+      }
+
+      redraw() {
+        this.ctx.clearRect(0, 0, this.width, this.height);
+        for (const stroke of this.strokes) {
+          const pts = stroke.points;
+          if (pts.length < 1) continue;
+
+          this.ctx.beginPath();
+          this.ctx.strokeStyle = stroke.color;
+          this.ctx.lineWidth = stroke.size;
+          this.ctx.lineCap = 'round';
+          this.ctx.lineJoin = 'round';
+
+          this.ctx.moveTo(pts[0][0], pts[0][1]);
+          for (let i = 1; i < pts.length; i++) {
+            this.ctx.lineTo(pts[i][0], pts[i][1]);
+          }
+          this.ctx.stroke();
+        }
+      }
+
+      drawSegment(p1, p2, color, size) {
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = size;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.moveTo(p1[0], p1[1]);
+        this.ctx.lineTo(p2[0], p2[1]);
+        this.ctx.stroke();
+      }
+    }
+
+    class PointSmoother {
+      constructor(windowSize = SMOOTHING_WINDOW) {
+        this.windowSize = windowSize;
+        this.buffer = [];
+      }
+
+      smooth(point) {
+        this.buffer.push(point);
+        if (this.buffer.length > this.windowSize) {
+          this.buffer.shift();
+        }
+        const xs = this.buffer.map(p => p[0]);
+        const ys = this.buffer.map(p => p[1]);
+        const sumX = xs.reduce((a, b) => a + b, 0);
+        const sumY = ys.reduce((a, b) => a + b, 0);
+        return [
+          Math.round(sumX / this.buffer.length),
+          Math.round(sumY / this.buffer.length)
+        ];
+      }
+
+      reset() {
+        this.buffer = [];
+      }
+    }
+
+    class GestureStabilizer {
+      constructor(holdFrames = GESTURE_HOLD_FRAMES) {
+        this.holdFrames = holdFrames;
+        this.lastGesture = null;
+        this.count = 0;
+        this.stableGesture = 'neutral';
+      }
+
+      update(gesture) {
+        if (gesture === this.lastGesture) {
+          this.count++;
+        } else {
+          this.lastGesture = gesture;
+          this.count = 1;
+        }
+
+        if (this.count >= this.holdFrames) {
+          this.stableGesture = gesture;
+        }
+
+        return this.stableGesture;
+      }
+    }
+
+    // Instantiation
+    const canvasManager = new CanvasManager(CAM_WIDTH, CAM_HEIGHT);
+    const smoother = new PointSmoother();
+    const gestureStabilizer = new GestureStabilizer();
+
+    // ----------------------------------------------------------------------
+    // UI Helpers
+    // ----------------------------------------------------------------------
+    function showToast(message, emoji = '✨', duration = 3000) {
+      toastMessage.textContent = message;
+      toastIcon.textContent = emoji;
+      toast.classList.add('show');
+      
+      // Auto hide
+      clearTimeout(toast.timeoutId);
+      toast.timeoutId = setTimeout(() => {
+        toast.classList.remove('show');
+      }, duration);
+    }
+
+    function showStatus(msg) {
+      showToast(msg, 'ℹ️');
+    }
+
+    function updateColorUI(colorKey) {
+      const color = COLOR_MAP[colorKey];
+      if (!color) return;
+
+      brushColor = color.hex;
+      brushColorName = color.name;
+
+      // Active state button highlight
+      document.querySelectorAll('.color-btn').forEach(btn => {
+        if (btn.getAttribute('data-color') === colorKey) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      // HUD indicators
+      hudColorText.textContent = brushColorName;
+      hudColorIndicator.style.background = brushColor;
+      hudColorIndicator.style.boxShadow = `0 0 8px ${brushColor}`;
+    }
+
+    function updateSizeUI(newSize) {
+      brushSize = Math.max(2, Math.min(40, newSize));
+      sizeSlider.value = brushSize;
+      
+      // Brush preview
+      brushPreviewDot.style.width = `${brushSize}px`;
+      brushPreviewDot.style.height = `${brushSize}px`;
+      brushPreviewDot.style.background = brushColor;
+      
+      // HUD
+      hudSizeValue.textContent = `${brushSize} px`;
+    }
+
+    // ----------------------------------------------------------------------
+    // API Interaction
+    // ----------------------------------------------------------------------
+    function saveCanvas() {
+      // Create temp canvas with solid black background
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = CAM_WIDTH;
+      tempCanvas.height = CAM_HEIGHT;
+      const tempCtx = tempCanvas.getContext('2d');
+
+      tempCtx.fillStyle = '#000000';
+      tempCtx.fillRect(0, 0, CAM_WIDTH, CAM_HEIGHT);
+      tempCtx.drawImage(canvasManager.canvas, 0, 0);
+
+      showToast('Saving drawing...', '📥', 1200);
+
+      // Perform PNG compression asynchronously
+      tempCanvas.toBlob((blob) => {
+        if (!blob) {
+          showToast('Failed to generate image', '❌', 3000);
+          return;
+        }
+
+        // Perform base64 conversion asynchronously
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64data = reader.result;
+          
+          try {
+            const response = await fetch('/api/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: base64data })
+            });
+            
+            const result = await response.json();
+            if (result.status === 'success') {
+              showToast(`Saved drawing: ${result.filename}`, '💾', 4000);
+            } else {
+              showToast(`Save failed: ${result.message}`, '❌', 4000);
+            }
+          } catch (err) {
+            console.error(err);
+            showToast('Local server offline. Saving failed.', '⚠️', 4000);
+          }
+        };
+        reader.readAsDataURL(blob);
+      }, 'image/png');
+    }
+
+    // ----------------------------------------------------------------------
+    // Hand Gesture Calculation
+    // ----------------------------------------------------------------------
+    function checkFingersUp(landmarks, handedness) {
+      const fingers = {};
+
+      // Thumb: Compare horizontal coordinates.
+      // Since unmirrored image has right hand on the left side of frame:
+      const thumbTipX = landmarks[4].x;
+      const thumbIpX = landmarks[3].x; // Inner joint
+
+      if (handedness === 'Right') {
+        fingers.thumb = thumbTipX < thumbIpX;
+      } else {
+        fingers.thumb = thumbTipX > thumbIpX;
+      }
+
+      // Other 4 fingers: Y tip < Y pip
+      const fingerKeys = ['index', 'middle', 'ring', 'pinky'];
+      for (const key of fingerKeys) {
+        const tipY = landmarks[TIP_IDS[key]].y;
+        const pipY = landmarks[PIP_IDS[key]].y;
+        fingers[key] = tipY < pipY;
+      }
+
+      return fingers;
+    }
+
+    function detectGesture(fingers) {
+      const upCount = Object.values(fingers).filter(val => val).length;
+      const nonThumbUp = ['index', 'middle', 'ring', 'pinky'].filter(name => fingers[name]).length;
+
+      // 5 fingers extended -> Open Palm -> Clear
+      if (upCount === 5) return 'open_palm';
+
+      // 0 fingers extended -> Fist -> Pause
+      if (upCount === 0) return 'fist';
+
+      // Thumbs up only, other fingers curled -> Save
+      if (fingers.thumb && nonThumbUp === 0) return 'thumbs_up';
+
+      // Index + Middle extended only -> Selection mode
+      if (fingers.index && fingers.middle && !fingers.ring && !fingers.pinky) return 'selection';
+
+      // Index extended only -> Draw
+      if (fingers.index && !fingers.middle && !fingers.ring && !fingers.pinky) return 'draw';
+
+      // Pinky extended only -> Color cycle (mini finger)
+      if (fingers.pinky && !fingers.index && !fingers.middle && !fingers.ring && !fingers.thumb) return 'pinky_cycle';
+
+      return 'neutral';
+    }
+
+    function handleDrawingState(gesture, indexTipPoint) {
+      if (gesture === 'draw') {
+        if (!isDrawing) {
+          isDrawing = true;
+          canvasManager.startStroke(brushColor, brushSize);
+          smoother.reset();
+          prevPoint = null;
+        }
+
+        const smoothed = smoother.smooth(indexTipPoint);
+        canvasManager.addPoint(smoothed);
+
+        if (prevPoint !== null) {
+          const dist = Math.hypot(smoothed[0] - prevPoint[0], smoothed[1] - prevPoint[1]);
+          if (dist >= MIN_DRAW_DISTANCE) {
+            canvasManager.drawSegment(prevPoint, smoothed, brushColor, brushSize);
+            prevPoint = smoothed;
+          }
+        } else {
+          prevPoint = smoothed;
+        }
+      } else {
+        // Stop drawing if not in draw gesture
+        if (isDrawing) {
+          canvasManager.endStroke();
+          isDrawing = false;
+          prevPoint = null;
+          smoother.reset();
+        }
+
+        if (gesture === 'open_palm') {
+          canvasManager.clear();
+          showToast('Canvas Cleared', '🧹', 1500);
+        } else if (gesture === 'thumbs_up') {
+          const now = Date.now();
+          if (now - lastSaveTime > THUMBS_UP_COOLDOWN) {
+            lastSaveTime = now;
+            saveCanvas();
+          }
+        } else if (gesture === 'pinky_cycle') {
+          const now = Date.now();
+          if (now - lastColorCycleTime > 1500) {
+            lastColorCycleTime = now;
+            const keys = ['r', 'g', 'b', 'y', 'w'];
+            const currentKey = keys.find(k => COLOR_MAP[k].hex === brushColor) || 'r';
+            const currentIndex = keys.indexOf(currentKey);
+            const nextIndex = (currentIndex + 1) % keys.length;
+            const nextKey = keys[nextIndex];
+            updateColorUI(nextKey);
+            updateSizeUI(brushSize);
+            showToast(`Color cycled: ${COLOR_MAP[nextKey].name}`, '🎨', 1200);
+          }
+        }
+      }
+    }
+
+    // ----------------------------------------------------------------------
+    // Rendering & Frame Update
+    // ----------------------------------------------------------------------
+    function drawHandSkeleton(ctx, landmarks) {
+      // Connect joints
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.55)';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+
+      for (const connection of HAND_CONNECTIONS) {
+        const p1 = landmarks[connection[0]];
+        const p2 = landmarks[connection[1]];
+
+        const x1 = (1 - p1.x) * CAM_WIDTH;
+        const y1 = p1.y * CAM_HEIGHT;
+        const x2 = (1 - p2.x) * CAM_WIDTH;
+        const y2 = p2.y * CAM_HEIGHT;
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+
+      // Render knuckles
+      for (let i = 0; i < landmarks.length; i++) {
+        const p = landmarks[i];
+        const x = (1 - p.x) * CAM_WIDTH;
+        const y = p.y * CAM_HEIGHT;
+
+        if (i === 8) {
+          // Glow index finger tip cursor
+          ctx.save();
+          ctx.fillStyle = '#ff0055';
+          ctx.shadowBlur = 20;
+          ctx.shadowColor = '#ff0055';
+          ctx.beginPath();
+          ctx.arc(x, y, 10, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.restore();
+        } else {
+          ctx.fillStyle = 'var(--color-primary)';
+          ctx.beginPath();
+          ctx.arc(x, y, 5, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+      }
+    }
+
+    function drawUIButtons(ctx, indexTipPoint, activeColorHex) {
+      // Draw top bar background
+      ctx.fillStyle = 'rgba(11, 13, 25, 0.75)';
+      ctx.fillRect(0, 0, 1280, 75);
+      
+      // Divider line
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, 75);
+      ctx.lineTo(1280, 75);
+      ctx.stroke();
+
+      for (const btn of UI_BUTTONS) {
+        const isHovered = indexTipPoint && 
+                          indexTipPoint[0] >= btn.x && 
+                          indexTipPoint[0] <= btn.x + btn.w && 
+                          indexTipPoint[1] >= btn.y && 
+                          indexTipPoint[1] <= btn.y + btn.h;
+
+        ctx.save();
+        
+        if (btn.type === 'color') {
+          const centerX = btn.x + btn.w / 2;
+          const centerY = btn.y + btn.h / 2;
+          const radius = btn.w / 2;
+
+          // Glowing border for active color
+          if (btn.color === activeColorHex) {
+            ctx.strokeStyle = '#00f2fe';
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00f2fe';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius + 4, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+          }
+
+          // White highlight border on hover
+          if (isHovered) {
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius + 2, 0, 2 * Math.PI);
+            ctx.stroke();
+          }
+
+          ctx.fillStyle = btn.color;
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+          ctx.fill();
+        } else {
+          // Action button (Undo, Clear)
+          ctx.fillStyle = isHovered ? 'rgba(255, 255, 255, 0.22)' : btn.color;
+          ctx.strokeStyle = isHovered ? '#00f2fe' : 'rgba(255, 255, 255, 0.12)';
+          ctx.lineWidth = 1.5;
+          
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(btn.x, btn.y, btn.w, btn.h, 6);
+          } else {
+            ctx.rect(btn.x, btn.y, btn.w, btn.h);
+          }
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = isHovered ? '#00f2fe' : '#ffffff';
+          ctx.font = '600 13px Outfit, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2);
+        }
+
+        ctx.restore();
+      }
+    }
+
+    function onResults(results) {
+      // Clear camera canvas
+      camCtx.clearRect(0, 0, CAM_WIDTH, CAM_HEIGHT);
+      
+      // 1. Draw webcam frame mirrored
+      camCtx.save();
+      camCtx.translate(CAM_WIDTH, 0);
+      camCtx.scale(-1, 1);
+      camCtx.drawImage(video, 0, 0, CAM_WIDTH, CAM_HEIGHT);
+      camCtx.restore();
+
+      let gesture = 'neutral';
+      let indexTipPoint = null;
+
+      // Check if hands detected
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        const handedness = results.multiHandedness[0].label;
+
+        // Draw skeletons on camera canvas
+        drawHandSkeleton(camCtx, landmarks);
+
+        // Get index fingertip in mirrored coordinate frame
+        const indexTip = landmarks[8];
+        indexTipPoint = [
+          Math.round((1 - indexTip.x) * CAM_WIDTH),
+          Math.round(indexTip.y * CAM_HEIGHT)
+        ];
+
+        // Process fingers and gestures
+        const fingers = checkFingersUp(landmarks, handedness);
+        const rawGesture = detectGesture(fingers);
+        gesture = gestureStabilizer.update(rawGesture);
+
+        // Handle states
+        handleDrawingState(gesture, indexTipPoint);
+
+        // Hover menus check in Selection Mode (✌️)
+        if (gesture === 'selection' && indexTipPoint) {
+          const now = Date.now();
+          for (const btn of UI_BUTTONS) {
+            const isHovered = indexTipPoint[0] >= btn.x && 
+                              indexTipPoint[0] <= btn.x + btn.w && 
+                              indexTipPoint[1] >= btn.y && 
+                              indexTipPoint[1] <= btn.y + btn.h;
+            
+            if (isHovered) {
+              if (btn.type === 'color') {
+                const colorKey = btn.id;
+                if (brushColor !== btn.color) {
+                  updateColorUI(colorKey);
+                  updateSizeUI(brushSize);
+                  showToast(`Color: ${COLOR_MAP[colorKey].name}`, '🎨', 800);
+                }
+              } else if (btn.type === 'action') {
+                if (now - lastActionTime > ACTION_COOLDOWN) {
+                  lastActionTime = now;
+                  if (btn.id === 'undo') {
+                    canvasManager.undo();
+                    showToast('Undo Stroke', '↩️', 1000);
+                  } else if (btn.id === 'clear') {
+                    canvasManager.clear();
+                    showToast('Canvas Cleared', '🧹', 1000);
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // No hand detected
+        gesture = gestureStabilizer.update('neutral');
+        handleDrawingState(gesture, null);
+      }
+
+      // 2. Overlay persistent drawing canvas on camera preview
+      camCtx.drawImage(canvasManager.canvas, 0, 0);
+
+      // Draw floating menu buttons on the camera canvas
+      drawUIButtons(camCtx, indexTipPoint, brushColor);
+
+      // 3. Render clean drawing canvas view
+      cleanCtx.fillStyle = '#000000';
+      cleanCtx.fillRect(0, 0, CAM_WIDTH, CAM_HEIGHT);
+      cleanCtx.drawImage(canvasManager.canvas, 0, 0);
+
+      // Update HUD state
+      updateHUD(gesture);
+
+      // Calculate and render FPS
+      calculateFPS();
+    }
+
+    function updateHUD(gesture) {
+      const meta = GESTURE_META[gesture] || GESTURE_META['neutral'];
+      
+      hudGestureText.textContent = `${meta.emoji} ${meta.text}`;
+      hudIndicator.style.background = meta.color;
+      hudIndicator.style.boxShadow = `0 0 10px ${meta.color}`;
+      hudStateCard.style.setProperty('--hud-border-color', meta.color);
+    }
+
+    function calculateFPS() {
+      const now = performance.now();
+      const dt = now - prevTime;
+      prevTime = now;
+
+      if (dt > 0) {
+        fpsHistory.push(1000 / dt);
+        if (fpsHistory.length > 30) {
+          fpsHistory.shift();
+        }
+        const avgFps = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
+        hudFps.textContent = `${avgFps.toFixed(1)} FPS`;
+      }
+    }
+
+    // ----------------------------------------------------------------------
+    // Initialization & Camera Loop
+    // ----------------------------------------------------------------------
+    async function initCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: CAM_WIDTH },
+            height: { ideal: CAM_HEIGHT },
+            frameRate: { ideal: 30 }
+          },
+          audio: false
+        });
+        
+        video.srcObject = stream;
+        
+        // Wait for video load metadata
+        await new Promise((resolve) => {
+          video.onloadedmetadata = () => {
+            cameraIndicator.textContent = `Status: Active (${video.videoWidth}x${video.videoHeight})`;
+            resolve();
+          };
+        });
+
+        // Hide loader overlay
+        document.getElementById('loading_overlay').style.opacity = 0;
+        setTimeout(() => {
+          document.getElementById('loading_overlay').style.display = 'none';
+        }, 500);
+
+        showToast('Viya Initialized!', '✨', 3000);
+      } catch (err) {
+        console.error('Camera capture failed:', err);
+        cameraIndicator.textContent = 'Status: Camera Error!';
+        cameraIndicator.style.background = 'rgba(255,59,48,0.2)';
+        cameraIndicator.style.color = '#ff3b30';
+        
+        document.querySelector('.loading-text').textContent = 'CAMERA ACCESS DENIED';
+        document.querySelector('.loading-subtext').textContent = 
+          'Please grant webcam permissions and refresh the page to run the application.';
+        document.querySelector('.spinner').style.borderColor = 'var(--color-red)';
+      }
+    }
+
+    async function initMediaPipe() {
+      const handsModel = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      });
+
+      handsModel.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.75,
+        minTrackingConfidence: 0.65
+      });
+
+      handsModel.onResults(onResults);
+
+      // Start processing loop
+      async function processFrame() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          await handsModel.send({ image: video });
+        }
+        requestAnimationFrame(processFrame);
+      }
+      
+      requestAnimationFrame(processFrame);
+    }
+
+    // ----------------------------------------------------------------------
+    // UI Event Listeners & Keyboard Shortcuts
+    // ----------------------------------------------------------------------
+    
+    // Color Buttons Click
+    document.querySelectorAll('.color-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const colorKey = e.target.getAttribute('data-color');
+        updateColorUI(colorKey);
+        updateSizeUI(brushSize); // Recolor preview dot
+      });
+    });
+
+    // Brush Size Slider Change
+    sizeSlider.addEventListener('input', (e) => {
+      updateSizeUI(parseInt(e.target.value));
+    });
+
+    // Undo Button
+    document.getElementById('btn_undo').addEventListener('click', () => {
+      canvasManager.undo();
+      showToast('Undo Stroke', '↩️', 1200);
+    });
+
+    // Clear Button
+    document.getElementById('btn_clear').addEventListener('click', () => {
+      canvasManager.clear();
+      showToast('Canvas Cleared', '🧹', 1200);
+    });
+
+    // Save Button
+    document.getElementById('btn_save').addEventListener('click', saveCanvas);
+
+    // Keyboard Shortcuts Listener
+    window.addEventListener('keydown', (e) => {
+      const key = e.key.toLowerCase();
+      
+      // Colors
+      if (COLOR_MAP[key]) {
+        updateColorUI(key);
+        updateSizeUI(brushSize);
+        showToast(`Brush: ${COLOR_MAP[key].name}`, '🎨', 1000);
+      }
+      
+      // Canvas Adjustments
+      if (key === '=' || key === '+') {
+        updateSizeUI(brushSize + 2);
+        showToast(`Brush size: ${brushSize}px`, '✏️', 1000);
+      }
+      if (key === '-') {
+        updateSizeUI(brushSize - 2);
+        showToast(`Brush size: ${brushSize}px`, '✏️', 1000);
+      }
+      if (key === 'u') {
+        canvasManager.undo();
+        showToast('Undo', '↩️', 1000);
+      }
+      if (key === 'c') {
+        canvasManager.clear();
+        showToast('Canvas Cleared', '🧹', 1000);
+      }
+      if (key === 's') {
+        saveCanvas();
+      }
+    });
+
+    // ----------------------------------------------------------------------
+    // Main Entrypoint
+    // ----------------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', async () => {
+      updateColorUI('r');
+      updateSizeUI(6);
+      await initCamera();
+      await initMediaPipe();
+    });
+  </script>
+</body>
+</html>

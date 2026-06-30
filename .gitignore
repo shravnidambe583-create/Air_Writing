@@ -1,0 +1,5 @@
+saved_drawings/
+__pycache__/
+*.pyc
+.DS_Store
+*.log
