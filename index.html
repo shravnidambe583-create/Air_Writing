@@ -1219,27 +1219,36 @@
     // ----------------------------------------------------------------------
     // Hand Gesture Calculation
     // ----------------------------------------------------------------------
+    function getDistance(p1, p2) {
+      return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    }
+
     function checkFingersUp(landmarks, handedness) {
       const fingers = {};
+      const wrist = landmarks[0];
 
-      // Thumb: Compare horizontal coordinates.
-      // Since unmirrored image has right hand on the left side of frame:
-      const thumbTipX = landmarks[4].x;
-      const thumbIpX = landmarks[3].x; // Inner joint
-
-      if (handedness === 'Right') {
-        fingers.thumb = thumbTipX < thumbIpX;
-      } else {
-        fingers.thumb = thumbTipX > thumbIpX;
+      // For other four fingers: tip is further from wrist than the pip joint
+      const fingerNames = ['index', 'middle', 'ring', 'pinky'];
+      for (const name of fingerNames) {
+        const tip = landmarks[TIP_IDS[name]];
+        const pip = landmarks[PIP_IDS[name]];
+        
+        const dTip = getDistance(tip, wrist);
+        const dPip = getDistance(pip, wrist);
+        
+        fingers[name] = dTip > dPip;
       }
 
-      // Other 4 fingers: Y tip < Y pip
-      const fingerKeys = ['index', 'middle', 'ring', 'pinky'];
-      for (const key of fingerKeys) {
-        const tipY = landmarks[TIP_IDS[key]].y;
-        const pipY = landmarks[PIP_IDS[key]].y;
-        fingers[key] = tipY < pipY;
-      }
+      // For the thumb:
+      // We check distance from thumb tip (4) to index knuckle MCP (5)
+      // Normalized by palm size (distance from index knuckle 5 to wrist 0)
+      const thumbTip = landmarks[4];
+      const indexMcp = landmarks[5];
+      
+      const dThumbIndex = getDistance(thumbTip, indexMcp);
+      const dPalmSize = getDistance(indexMcp, wrist);
+      
+      fingers.thumb = (dThumbIndex / dPalmSize) > 0.42;
 
       return fingers;
     }
