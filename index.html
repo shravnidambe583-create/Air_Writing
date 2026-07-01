@@ -1060,23 +1060,38 @@
     }
 
     class GestureStabilizer {
-      constructor(holdFrames = GESTURE_HOLD_FRAMES) {
-        this.holdFrames = holdFrames;
-        this.lastGesture = null;
-        this.count = 0;
+      constructor(windowSize = 5, threshold = 3) {
+        this.windowSize = windowSize;
+        this.threshold = threshold;
+        this.history = [];
         this.stableGesture = 'neutral';
       }
 
       update(gesture) {
-        if (gesture === this.lastGesture) {
-          this.count++;
-        } else {
-          this.lastGesture = gesture;
-          this.count = 1;
+        this.history.push(gesture);
+        if (this.history.length > this.windowSize) {
+          this.history.shift();
         }
 
-        if (this.count >= this.holdFrames) {
-          this.stableGesture = gesture;
+        // Count frequencies of each gesture in history
+        const counts = {};
+        for (const g of this.history) {
+          counts[g] = (counts[g] || 0) + 1;
+        }
+
+        // Find the gesture with the highest frequency
+        let maxGesture = 'neutral';
+        let maxCount = 0;
+        for (const g in counts) {
+          if (counts[g] > maxCount) {
+            maxCount = counts[g];
+            maxGesture = g;
+          }
+        }
+
+        // Lock in the gesture if it exceeds the majority threshold count
+        if (maxCount >= this.threshold) {
+          this.stableGesture = maxGesture;
         }
 
         return this.stableGesture;
@@ -1631,8 +1646,8 @@
             console.error("MediaPipe processing error:", e);
           }
         }
-        // Schedule using setTimeout to prevent blocking browser repaints
-        setTimeout(processFrame, 15);
+        // Schedule immediately using setTimeout(..., 0) to process as fast as the hardware allows
+        setTimeout(processFrame, 0);
       }
       
       setTimeout(processFrame, 500);
