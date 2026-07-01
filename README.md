@@ -40,10 +40,24 @@ pip install -r requirements.txt
 
 ## Running
 
+### Option 1: Web Application (Viya) - Recommended 🚀
+
+Viya is served locally on localhost and runs entirely in your web browser. It features a modern dark cockpit, hover selection menus, hand-gesture controls, and asynchronous saving.
+
+1. Start the local web server:
+   ```bash
+   python server.py 8080
+   ```
+2. Open your web browser and navigate to: [http://localhost:8080](http://localhost:8080)
+
+*Note: You can also access the online deployed version hosted on GitHub Pages: [https://shravnidambe583-create.github.io/Air_Writing/](https://shravnidambe583-create.github.io/Air_Writing/)*
+
+### Option 2: Desktop Python GUI
+
+Run the original OpenCV desktop application:
 ```bash
 python air_writing.py
 ```
-
 Two windows will open:
 1. **Air Writing - Camera Feed** — your webcam with hand landmarks and your drawing overlaid
 2. **Air Writing - Canvas** — just the drawing, on a black background
