@@ -924,16 +924,16 @@
     let lastSaveTime = 0;
     let lastColorCycleTime = 0;
     
-    // UI Menu Buttons coordinates for hover selection
+    // UI Menu Buttons coordinates for hover selection (shifted down to prevent CSS corner clipping)
     const UI_BUTTONS = [
-      { id: 'r', type: 'color', label: 'RED', x: 40, y: 15, w: 45, h: 45, color: '#ff3b30' },
-      { id: 'g', type: 'color', label: 'GREEN', x: 95, y: 15, w: 45, h: 45, color: '#34c759' },
-      { id: 'b', type: 'color', label: 'BLUE', x: 150, y: 15, w: 45, h: 45, color: '#007aff' },
-      { id: 'y', type: 'color', label: 'YELLOW', x: 205, y: 15, w: 45, h: 45, color: '#ffcc00' },
-      { id: 'w', type: 'color', label: 'WHITE', x: 260, y: 15, w: 45, h: 45, color: '#ffffff' },
+      { id: 'r', type: 'color', label: 'RED', x: 40, y: 30, w: 45, h: 45, color: '#ff3b30' },
+      { id: 'g', type: 'color', label: 'GREEN', x: 95, y: 30, w: 45, h: 45, color: '#34c759' },
+      { id: 'b', type: 'color', label: 'BLUE', x: 150, y: 30, w: 45, h: 45, color: '#007aff' },
+      { id: 'y', type: 'color', label: 'YELLOW', x: 205, y: 30, w: 45, h: 45, color: '#ffcc00' },
+      { id: 'w', type: 'color', label: 'WHITE', x: 260, y: 30, w: 45, h: 45, color: '#ffffff' },
       
-      { id: 'undo', type: 'action', label: 'Undo ↩️', x: 325, y: 15, w: 85, h: 45, color: 'rgba(255, 255, 255, 0.12)' },
-      { id: 'clear', type: 'action', label: 'Clear 🧹', x: 420, y: 15, w: 85, h: 45, color: 'rgba(255, 59, 48, 0.2)' }
+      { id: 'undo', type: 'action', label: 'Undo ↩️', x: 325, y: 30, w: 85, h: 45, color: 'rgba(255, 255, 255, 0.12)' },
+      { id: 'clear', type: 'action', label: 'Clear 🧹', x: 420, y: 30, w: 85, h: 45, color: 'rgba(255, 59, 48, 0.2)' }
     ];
     let lastActionTime = 0;
     const ACTION_COOLDOWN = 1000; // ms
@@ -1384,17 +1384,24 @@
     }
 
     function drawUIButtons(ctx, indexTipPoint, activeColorHex) {
-      // Draw top bar background
-      ctx.fillStyle = 'rgba(11, 13, 25, 0.75)';
-      ctx.fillRect(0, 0, 1280, 75);
+      ctx.save();
+
+      // Draw floating menu background card (shifted to prevent CSS corner clipping)
+      ctx.fillStyle = 'rgba(11, 13, 25, 0.85)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 1.5;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
       
-      // Divider line
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(0, 75);
-      ctx.lineTo(1280, 75);
+      if (ctx.roundRect) {
+        ctx.roundRect(20, 20, 505, 65, 12);
+      } else {
+        ctx.rect(20, 20, 505, 65);
+      }
+      ctx.fill();
       ctx.stroke();
+      ctx.restore();
 
       for (const btn of UI_BUTTONS) {
         const isHovered = indexTipPoint && 
