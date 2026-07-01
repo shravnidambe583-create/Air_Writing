@@ -1173,7 +1173,16 @@
             }
           } catch (err) {
             console.error(err);
-            showToast('Local server offline. Saving failed.', '⚠️', 4000);
+            showToast('Server offline. Saving to downloads folder...', '📥', 3000);
+            
+            // Local fallback download
+            const link = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/[-:T.]/g, '_').slice(0, 15);
+            link.download = `drawing_${timestamp}.png`;
+            link.href = base64data;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
           }
         };
         reader.readAsDataURL(blob);
