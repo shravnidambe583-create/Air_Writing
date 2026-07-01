@@ -853,6 +853,12 @@
     const cleanCanvas = document.getElementById('canvas');
     const cleanCtx = cleanCanvas.getContext('2d');
 
+    // Low-resolution offscreen canvas to process MediaPipe frames with 4x fewer pixels
+    const procCanvas = document.createElement('canvas');
+    procCanvas.width = 640;
+    procCanvas.height = 360;
+    const procCtx = procCanvas.getContext('2d');
+
     const hudGestureText = document.getElementById('hud_gesture_text');
     const hudIndicator = document.getElementById('hud_indicator');
     const hudStateCard = document.getElementById('hud_state_card');
@@ -1618,18 +1624,18 @@
       async function processFrame() {
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
           try {
-            await handsModel.send({ image: video });
+            // Draw video downscaled to 640x360 for 4x faster execution
+            procCtx.drawImage(video, 0, 0, 640, 360);
+            await handsModel.send({ image: procCanvas });
           } catch (e) {
             console.error("MediaPipe processing error:", e);
           }
         }
-        // Small delay to prevent CPU thrashing
-        setTimeout(() => {
-          requestAnimationFrame(processFrame);
-        }, 5);
+        // Schedule using setTimeout to prevent blocking browser repaints
+        setTimeout(processFrame, 15);
       }
       
-      requestAnimationFrame(processFrame);
+      setTimeout(processFrame, 500);
     }
 
     // ----------------------------------------------------------------------
