@@ -932,6 +932,12 @@
     let lastActionTime = 0;
     const ACTION_COOLDOWN = 1000; // ms
     
+    // MediaPipe last known tracking state
+    let lastLandmarks = null;
+    let lastHandedness = null;
+    let lastActiveTime = 0;
+    let lastIndexTipPoint = null;
+    
     // Performance Variables
     let fpsHistory = [];
     let prevTime = performance.now();
@@ -1425,37 +1431,53 @@
       }
     }
 
-    function onResults(results) {
-      // Clear camera canvas
-      camCtx.clearRect(0, 0, CAM_WIDTH, CAM_HEIGHT);
-      
+    function renderLoop() {
       // 1. Draw webcam frame mirrored
+      camCtx.clearRect(0, 0, CAM_WIDTH, CAM_HEIGHT);
       camCtx.save();
       camCtx.translate(CAM_WIDTH, 0);
       camCtx.scale(-1, 1);
       camCtx.drawImage(video, 0, 0, CAM_WIDTH, CAM_HEIGHT);
       camCtx.restore();
 
-      let gesture = 'neutral';
-      let indexTipPoint = null;
+      // 2. Overlay persistent drawing canvas on camera preview
+      camCtx.drawImage(canvasManager.canvas, 0, 0);
 
+      // 3. Draw floating menu buttons on the camera canvas
+      drawUIButtons(camCtx, lastIndexTipPoint, brushColor);
+
+      // 4. Draw skeletons on camera canvas if detected recently (within last 500ms)
+      if (lastLandmarks && (Date.now() - lastActiveTime < 500)) {
+        drawHandSkeleton(camCtx, lastLandmarks);
+      }
+
+      // 5. Render clean drawing canvas view
+      cleanCtx.fillStyle = '#000000';
+      cleanCtx.fillRect(0, 0, CAM_WIDTH, CAM_HEIGHT);
+      cleanCtx.drawImage(canvasManager.canvas, 0, 0);
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    function onResults(results) {
+      let gesture = 'neutral';
+      
       // Check if hands detected
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        const landmarks = results.multiHandLandmarks[0];
-        const handedness = results.multiHandedness[0].label;
-
-        // Draw skeletons on camera canvas
-        drawHandSkeleton(camCtx, landmarks);
+        lastLandmarks = results.multiHandLandmarks[0];
+        lastHandedness = results.multiHandedness[0].label;
+        lastActiveTime = Date.now();
 
         // Get index fingertip in mirrored coordinate frame
-        const indexTip = landmarks[8];
-        indexTipPoint = [
+        const indexTip = lastLandmarks[8];
+        const indexTipPoint = [
           Math.round((1 - indexTip.x) * CAM_WIDTH),
           Math.round(indexTip.y * CAM_HEIGHT)
         ];
+        lastIndexTipPoint = indexTipPoint;
 
         // Process fingers and gestures
-        const fingers = checkFingersUp(landmarks, handedness);
+        const fingers = checkFingersUp(lastLandmarks, lastHandedness);
         const rawGesture = detectGesture(fingers);
         gesture = gestureStabilizer.update(rawGesture);
 
@@ -1496,20 +1518,12 @@
         }
       } else {
         // No hand detected
+        lastLandmarks = null;
+        lastHandedness = null;
+        lastIndexTipPoint = null;
         gesture = gestureStabilizer.update('neutral');
         handleDrawingState(gesture, null);
       }
-
-      // 2. Overlay persistent drawing canvas on camera preview
-      camCtx.drawImage(canvasManager.canvas, 0, 0);
-
-      // Draw floating menu buttons on the camera canvas
-      drawUIButtons(camCtx, indexTipPoint, brushColor);
-
-      // 3. Render clean drawing canvas view
-      cleanCtx.fillStyle = '#000000';
-      cleanCtx.fillRect(0, 0, CAM_WIDTH, CAM_HEIGHT);
-      cleanCtx.drawImage(canvasManager.canvas, 0, 0);
 
       // Update HUD state
       updateHUD(gesture);
@@ -1594,18 +1608,25 @@
       handsModel.setOptions({
         maxNumHands: 1,
         modelComplexity: 1,
-        minDetectionConfidence: 0.75,
-        minTrackingConfidence: 0.65
+        minDetectionConfidence: 0.55,
+        minTrackingConfidence: 0.55
       });
 
       handsModel.onResults(onResults);
 
-      // Start processing loop
+      // Start processing loop (Runs asynchronously without blocking rendering)
       async function processFrame() {
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
-          await handsModel.send({ image: video });
+          try {
+            await handsModel.send({ image: video });
+          } catch (e) {
+            console.error("MediaPipe processing error:", e);
+          }
         }
-        requestAnimationFrame(processFrame);
+        // Small delay to prevent CPU thrashing
+        setTimeout(() => {
+          requestAnimationFrame(processFrame);
+        }, 5);
       }
       
       requestAnimationFrame(processFrame);
@@ -1684,6 +1705,8 @@
       updateColorUI('r');
       updateSizeUI(6);
       await initCamera();
+      // Start the render loop immediately to keep the screen drawing fluidly
+      requestAnimationFrame(renderLoop);
       await initMediaPipe();
     });
   </script>
