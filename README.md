@@ -52,7 +52,7 @@ Viya is served locally on localhost and runs entirely in your web browser. It fe
 
 *Note: You can access the online deployed versions hosted on:*
 - *GitHub Pages: [https://shravnidambe583-create.github.io/Air_Writing/](https://shravnidambe583-create.github.io/Air_Writing/)*
-- *Vercel: [https://airwrite-kappa.vercel.app](https://airwrite-kappa.vercel.app)*
+- *Vercel: [https://airwrite-eight.vercel.app](https://airwrite-eight.vercel.app)*
 
 ### Option 2: Desktop Python GUI
 
